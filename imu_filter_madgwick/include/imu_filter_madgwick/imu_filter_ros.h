@@ -89,6 +89,9 @@ class ImuFilterRos
     geometry_msgs::Vector3 mag_bias_;
     double orientation_variance_;
 
+    // **** CWRUbotix custom param
+    bool remove_yaw_tf_;
+
     // **** state variables
     boost::mutex mutex_;
     bool initialized_;

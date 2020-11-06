@@ -53,6 +53,12 @@ ImuFilterRos::ImuFilterRos(ros::NodeHandle nh, ros::NodeHandle nh_private):
   if (!nh_private_.getParam ("publish_debug_topics", publish_debug_topics_))
     publish_debug_topics_= false;
 
+  // **** CWRUbotix custom param
+  if (!nh_private_.getParam ("remove_yaw_tf", remove_yaw_tf_))
+    remove_yaw_tf_= false;
+
+  ROS_INFO("Remove yaw from tf set to '%s'.", (remove_yaw_tf_ ? "true" : "false"));
+
   std::string world_frame;
   if (!nh_private_.getParam ("world_frame", world_frame))
     world_frame = "enu";
@@ -287,6 +293,18 @@ void ImuFilterRos::publishTransform(const ImuMsg::ConstPtr& imu_msg_raw)
   filter_.getOrientation(q0,q1,q2,q3);
   geometry_msgs::TransformStamped transform;
   transform.header.stamp = imu_msg_raw->header.stamp;
+
+  // CWRUbotix custom remove yaw from tf publishing
+  if (remove_yaw_tf_)
+  {
+    double roll, pitch, yaw;
+    // Get rpy. Note that w is switched.
+    tf2::Matrix3x3(tf2::Quaternion(q1, q2, q3, q0)).getRPY(roll, pitch, yaw, 1);
+    tf2::Quaternion q;
+    q.setRPY(roll, pitch, 0.0);
+    q0 = q[3]; q1 = q[0]; q2 = q[1]; q3 = q[2];
+  }
+
   if (reverse_tf_)
   {
     transform.header.frame_id = imu_frame_;
@@ -312,6 +330,17 @@ void ImuFilterRos::publishFilteredMsg(const ImuMsg::ConstPtr& imu_msg_raw)
 {
   double q0,q1,q2,q3;
   filter_.getOrientation(q0,q1,q2,q3);
+
+  // CWRUbotix custom remove yaw
+  if (remove_yaw_tf_)
+  {
+    double roll, pitch, yaw;
+    // Get rpy. Note that w is switched.
+    tf2::Matrix3x3(tf2::Quaternion(q1, q2, q3, q0)).getRPY(roll, pitch, yaw, 1);
+    tf2::Quaternion q;
+    q.setRPY(roll, pitch, 0.0);
+    q0 = q[3]; q1 = q[0]; q2 = q[1]; q3 = q[2];
+  }
 
   // create and publish filtered IMU message
   boost::shared_ptr<ImuMsg> imu_msg =
